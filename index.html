@@ -397,16 +397,7 @@
         </div>
     </div>
 
-    <div class="setup-instructions" id="setupInstructions">
-        <h3>🔧 API Setup Instructions</h3>
-        <p>To enable real-time data, add your free API keys to the CONFIG section in the code:</p>
-        <ol>
-            <li><strong>Alpha Vantage</strong> (stocks/commodities): <a href="https://www.alphavantage.co/support/#api-key" target="_blank">Get free key</a></li>
-            <li><strong>FRED</strong> (economic data): <a href="https://fred.stlouisfed.org/docs/api/api_key.html" target="_blank">Get free key</a></li>
-            <li><strong>Financial Modeling Prep</strong> (alternative): <a href="https://financialmodelingprep.com/developer/docs" target="_blank">Get free key</a></li>
-        </ol>
-        <p>CoinGecko crypto data works without API keys. Some fallback data is shown below.</p>
-    </div>
+    <!-- setup-instructions removed for production -->
 
     <div class="dashboard-grid" id="dashboardGrid">
         <!-- Cards will be dynamically generated -->
@@ -419,8 +410,15 @@
             CACHE_DURATION: 60000 // 1 minute
         };
 
-        // Backend base URL (used when opening this file directly via file://)
-        const BACKEND_BASE = 'http://localhost:3001';
+        // Backend base URL
+        const BACKEND_BASE = (() => {
+            try {
+                if (location.origin && location.origin.startsWith('http')) {
+                    return location.origin;
+                }
+            } catch (_) {}
+            return 'http://localhost:3001';
+        })();
 
         // Data cache
         const dataCache = new Map();
@@ -584,19 +582,12 @@
             async init() {
                 this.updateTime();
                 this.updateApiStatus();
-                // Probe backend for key presence via /api/market-data
+                // Probe backend for key presence via /api/market-data (optional UI use)
                 try {
                     const resp = await axios.get(`${BACKEND_BASE}/api/market-data`);
                     this._hasKeys = Boolean(resp.data?.sources?.stocks !== 'fallback');
                 } catch {
                     this._hasKeys = false;
-                }
-                
-                // Check if API keys are configured
-                if (!this.fetcher.hasApiKeys()) {
-                    document.getElementById('setupInstructions').style.display = 'block';
-                } else {
-                    document.getElementById('setupInstructions').style.display = 'none';
                 }
 
                 await this.loadAllData();

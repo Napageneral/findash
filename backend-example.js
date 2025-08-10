@@ -6,6 +6,7 @@ const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
 const cron = require('node-cron');
+const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -21,6 +22,10 @@ app.use(cors({
 }));
 
 app.use(express.json());
+// Serve dashboard at root for convenience
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
 
 // Configuration - Use environment variables in production
 const CONFIG = {
@@ -370,17 +375,23 @@ app.use((error, req, res, next) => {
     });
 });
 
-// Start server
-app.listen(PORT, () => {
-    console.log(`Market Data API running on port ${PORT}`);
-    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`Cache duration: ${CONFIG.CACHE_DURATION} minutes`);
-    
-    // Log API key status
-    console.log('API Key Status:');
-    console.log(`- Alpha Vantage: ${CONFIG.ALPHA_VANTAGE_KEY ? '✓' : '✗'}`);
-    console.log(`- FRED: ${CONFIG.FRED_API_KEY ? '✓' : '✗'}`);
-    console.log(`- FMP: ${CONFIG.FMP_API_KEY ? '✓' : '✗'}`);
-});
+// Start server (only when not in serverless environment)
+if (!process.env.VERCEL) {
+    app.listen(PORT, () => {
+        console.log(`Market Data API running on port ${PORT}`);
+        console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+        console.log(`Cache duration: ${CONFIG.CACHE_DURATION} minutes`);
+        const localUrl = `http://localhost:${PORT}`;
+        const fileUrl = `file://${path.resolve(__dirname, 'index.html')}`;
+        console.log(`Dashboard URL: ${localUrl}`);
+        console.log(`Alternative local file URL: ${fileUrl}`);
+        
+        // Log API key status
+        console.log('API Key Status:');
+        console.log(`- Alpha Vantage: ${CONFIG.ALPHA_VANTAGE_KEY ? '✓' : '✗'}`);
+        console.log(`- FRED: ${CONFIG.FRED_API_KEY ? '✓' : '✗'}`);
+        console.log(`- FMP: ${CONFIG.FMP_API_KEY ? '✓' : '✗'}`);
+    });
+}
 
 module.exports = app;
