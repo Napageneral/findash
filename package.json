@@ -1,0 +1,34 @@
+{
+  "name": "palisades-gold-dashboard",
+  "version": "1.0.0",
+  "description": "Financial dashboard based on Mike McGlone's market analysis from Palisades Gold Radio",
+  "main": "backend-example.js",
+  "scripts": {
+    "start": "node backend-example.js",
+    "dev": "nodemon backend-example.js",
+    "test": "echo \"No tests specified\" && exit 0"
+  },
+  "keywords": [
+    "finance",
+    "dashboard",
+    "market-data",
+    "gold",
+    "bitcoin",
+    "commodities",
+    "stocks"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "axios": "^1.6.0",
+    "cors": "^2.8.5",
+    "node-cron": "^3.0.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
