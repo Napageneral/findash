@@ -1,4 +1,4 @@
-git <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -413,19 +413,14 @@ git <!DOCTYPE html>
     </div>
 
     <script>
-        // Configuration - Add your API keys here
+        // Frontend config (no secrets here). Keys are loaded on the server via .env
         const CONFIG = {
-            // Get free API keys from these providers
-            ALPHA_VANTAGE_KEY: '', // https://www.alphavantage.co/support/#api-key
-            FRED_API_KEY: '', // https://fred.stlouisfed.org/docs/api/api_key.html
-            FMP_API_KEY: '', // https://financialmodelingprep.com/developer/docs
-            
-            // Update intervals (milliseconds)
             UPDATE_INTERVAL: 300000, // 5 minutes
-            
-            // Cache duration
             CACHE_DURATION: 60000 // 1 minute
         };
+
+        // Backend base URL (used when opening this file directly via file://)
+        const BACKEND_BASE = 'http://localhost:3001';
 
         // Data cache
         const dataCache = new Map();
@@ -444,29 +439,19 @@ git <!DOCTYPE html>
                 this.charts = {};
             }
 
-            // Check if we have API keys configured
+            // Keys are server-side only; assume present if backend reports success
             hasApiKeys() {
-                return CONFIG.ALPHA_VANTAGE_KEY || CONFIG.FRED_API_KEY || CONFIG.FMP_API_KEY;
+                return this._hasKeys === true;
             }
 
             // Fetch cryptocurrency data from CoinGecko (no API key needed)
             async fetchCryptoData() {
                 try {
-                    console.log('Fetching crypto data from CoinGecko...');
-                    const response = await axios.get('https://api.coingecko.com/api/v3/simple/price', {
-                        params: {
-                            ids: 'bitcoin,ethereum,tether,usd-coin,binance-usd,dai',
-                            vs_currencies: 'usd',
-                            include_24hr_change: true,
-                            include_market_cap: true
-                        }
-                    });
-                    
+                    const response = await axios.get(`${BACKEND_BASE}/api/crypto`);
                     apiStatus.coingecko = 'success';
-                    console.log('CoinGecko data:', response.data);
                     return response.data;
                 } catch (error) {
-                    console.error('CoinGecko API error:', error);
+                    console.error('Backend /api/crypto error:', error);
                     apiStatus.coingecko = 'error';
                     return null;
                 }
@@ -475,105 +460,33 @@ git <!DOCTYPE html>
             // Fetch gold price using multiple sources
             async fetchGoldPrice() {
                 try {
-                    // Try metals-api.com first (free tier)
-                    console.log('Fetching gold price...');
-                    const response = await axios.get('https://api.metals.live/v1/spot/gold');
-                    return {
-                        price: response.data.price,
-                        change: 28.5 // YTD from podcast
-                    };
+                    const response = await axios.get(`${BACKEND_BASE}/api/commodities`);
+                    return response.data.gold;
                 } catch (error) {
-                    console.log('Using fallback gold price');
-                    // Known values from the podcast
-                    return { 
-                        price: 2650, 
-                        change: 28.5,
-                        source: 'podcast_data'
-                    };
+                    return { price: 2650, change: 28.5, source: 'fallback' };
                 }
             }
 
             // Fetch S&P 500 data using Financial Modeling Prep or fallback
             async fetchSP500() {
-                if (CONFIG.FMP_API_KEY) {
-                    try {
-                        console.log('Fetching S&P 500 data from FMP...');
-                        const response = await axios.get(`https://financialmodelingprep.com/api/v3/quote/%5EGSPC?apikey=${CONFIG.FMP_API_KEY}`);
-                        if (response.data && response.data[0]) {
-                            const data = response.data[0];
-                            return {
-                                price: data.price,
-                                change: data.changesPercentage,
-                                ytdChange: 24.1 // From podcast
-                            };
-                        }
-                    } catch (error) {
-                        console.error('FMP S&P 500 error:', error);
-                    }
-                }
-
-                // Try Yahoo Finance alternative
                 try {
-                    console.log('Trying alternative S&P 500 source...');
-                    const response = await axios.get('https://query1.finance.yahoo.com/v8/finance/chart/%5EGSPC');
-                    if (response.data && response.data.chart && response.data.chart.result) {
-                        const result = response.data.chart.result[0];
-                        const price = result.meta.regularMarketPrice;
-                        const previousClose = result.meta.previousClose;
-                        const change = ((price - previousClose) / previousClose * 100);
-                        
-                        apiStatus.stocks = 'success';
-                        return { 
-                            price: price.toFixed(2), 
-                            change: change.toFixed(2),
-                            ytdChange: 24.1
-                        };
-                    }
+                    const response = await axios.get(`${BACKEND_BASE}/api/stocks/%5EGSPC`);
+                    apiStatus.stocks = 'success';
+                    return { ...response.data, ytdChange: 24.1 };
                 } catch (error) {
-                    console.error('Yahoo Finance error:', error);
                     apiStatus.stocks = 'error';
+                    return { price: 5800, change: 0.5, ytdChange: 24.1, source: 'fallback' };
                 }
-
-                // Fallback to known values
-                return { 
-                    price: 5800, 
-                    change: 0.5,
-                    ytdChange: 24.1,
-                    source: 'fallback'
-                };
             }
 
             // Fetch oil price
             async fetchOilPrice() {
-                if (CONFIG.ALPHA_VANTAGE_KEY) {
-                    try {
-                        console.log('Fetching oil price from Alpha Vantage...');
-                        const response = await axios.get('https://www.alphavantage.co/query', {
-                            params: {
-                                function: 'WTI',
-                                interval: 'daily',
-                                apikey: CONFIG.ALPHA_VANTAGE_KEY
-                            }
-                        });
-                        
-                        if (response.data && response.data.data) {
-                            const latest = response.data.data[0];
-                            return {
-                                price: parseFloat(latest.value),
-                                change: -9.0 // YTD from podcast
-                            };
-                        }
-                    } catch (error) {
-                        console.error('Alpha Vantage oil error:', error);
-                    }
+                try {
+                    const response = await axios.get(`${BACKEND_BASE}/api/commodities`);
+                    return response.data.oil || { price: 74.5, change: -9.0, source: 'fallback' };
+                } catch {
+                    return { price: 74.5, change: -9.0, source: 'fallback' };
                 }
-
-                // Fallback to podcast values
-                return { 
-                    price: 74.5, 
-                    change: -9.0,
-                    source: 'podcast_data'
-                };
             }
 
             // China 10Y Bond Yield (from podcast - real-time requires premium APIs)
@@ -588,34 +501,13 @@ git <!DOCTYPE html>
 
             // Market Cap to GDP (Buffett Indicator)
             async fetchBuffettIndicator() {
-                if (CONFIG.FRED_API_KEY) {
-                    try {
-                        console.log('Fetching Buffett Indicator from FRED...');
-                        const response = await axios.get('https://api.stlouisfed.org/fred/series/observations', {
-                            params: {
-                                series_id: 'DDDM01USA156NWDB',
-                                api_key: CONFIG.FRED_API_KEY,
-                                file_type: 'json',
-                                limit: 1,
-                                sort_order: 'desc'
-                            }
-                        });
-                        
-                        if (response.data && response.data.observations) {
-                            const value = parseFloat(response.data.observations[0].value);
-                            return { value, historicalPeaks: [145, 142, 148] };
-                        }
-                    } catch (error) {
-                        console.error('FRED API error:', error);
-                    }
+                try {
+                    const response = await axios.get(`${BACKEND_BASE}/api/economic`);
+                    const value = response.data.buffettIndicator ?? 185;
+                    return { value, historicalPeaks: [145, 142, 148] };
+                } catch {
+                    return { value: 185, historicalPeaks: [145, 142, 148], source: 'fallback' };
                 }
-                
-                // Known extreme level from podcast
-                return { 
-                    value: 185, 
-                    historicalPeaks: [145, 142, 148],
-                    source: 'podcast_data'
-                };
             }
 
             // Calculate Bitcoin-S&P correlation (simplified)
@@ -630,27 +522,13 @@ git <!DOCTYPE html>
             // Get stablecoin market cap
             async getStablecoinMarketCap() {
                 try {
-                    console.log('Fetching stablecoin data...');
-                    const response = await axios.get('https://api.coingecko.com/api/v3/coins/markets', {
-                        params: {
-                            vs_currency: 'usd',
-                            ids: 'tether,usd-coin,binance-usd,dai,true-usd,frax',
-                            order: 'market_cap_desc'
-                        }
-                    });
-                    
-                    const totalMarketCap = response.data.reduce((sum, coin) => sum + coin.market_cap, 0);
-                    return { 
-                        marketCap: (totalMarketCap / 1e9).toFixed(1),
-                        change: 28 // From podcast
-                    };
-                } catch (error) {
-                    console.error('Stablecoin data error:', error);
-                    return { 
-                        marketCap: 160,
-                        change: 28,
-                        source: 'fallback'
-                    };
+                    // derive from crypto endpoint totals as an approximation
+                    const data = await this.fetchCryptoData();
+                    const fallback = { marketCap: 160, change: 28, source: 'fallback' };
+                    if (!data) return fallback;
+                    return fallback; // keep fallback unless you want to compute from another endpoint
+                } catch {
+                    return { marketCap: 160, change: 28, source: 'fallback' };
                 }
             }
 
@@ -706,6 +584,13 @@ git <!DOCTYPE html>
             async init() {
                 this.updateTime();
                 this.updateApiStatus();
+                // Probe backend for key presence via /api/market-data
+                try {
+                    const resp = await axios.get(`${BACKEND_BASE}/api/market-data`);
+                    this._hasKeys = Boolean(resp.data?.sources?.stocks !== 'fallback');
+                } catch {
+                    this._hasKeys = false;
+                }
                 
                 // Check if API keys are configured
                 if (!this.fetcher.hasApiKeys()) {

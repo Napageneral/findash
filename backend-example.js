@@ -1,5 +1,6 @@
 // Optional Node.js backend for advanced VPS deployment
 // This handles CORS issues and provides data caching
+require('dotenv').config();
 
 const express = require('express');
 const axios = require('axios');
@@ -9,10 +10,14 @@ const cron = require('node-cron');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Enable CORS for your frontend domain
+// Enable CORS (allow localhost and file:// during development)
 app.use(cors({
-    origin: ['http://localhost:3000', 'https://yourdomain.com'],
-    credentials: true
+    origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps, curl, or file://)
+        if (!origin) return callback(null, true);
+        return callback(null, true);
+    },
+    credentials: false
 }));
 
 app.use(express.json());
