@@ -1,8 +1,4 @@
-const serverless = require('serverless-http');
+// Export the Express app directly – @vercel/node can handle it
 const app = require('../backend-example');
-
-module.exports = (req, res) => {
-  const handler = serverless(app);
-  return handler(req, res);
-};
+module.exports = app;
 
